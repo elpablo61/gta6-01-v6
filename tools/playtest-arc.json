@@ -1,0 +1,84 @@
+{
+  "mode": "arc",
+  "filter": null,
+  "at": "2026-11-22T13:17:18.055Z",
+  "missions": {
+    "m1": {
+      "seconds": 13
+    },
+    "m2": {
+      "seconds": 118
+    },
+    "m3": {
+      "seconds": 20
+    },
+    "m4": {
+      "seconds": 22
+    },
+    "m5": {
+      "seconds": 10
+    },
+    "m6": {
+      "seconds": 35
+    },
+    "m7": {
+      "seconds": 26
+    },
+    "m8": {
+      "seconds": 19
+    },
+    "m9": {
+      "seconds": 2
+    },
+    "m10": {
+      "seconds": 26
+    },
+    "m11": {
+      "seconds": 25
+    },
+    "m12": {
+      "seconds": 50
+    }
+  },
+  "flags": {
+    "heliSeenM9": true,
+    "heliSeenM12": true,
+    "weaponUsedM10": true,
+    "garagePurchaseM11": true
+  },
+  "errors": [],
+  "passed": 6,
+  "total": 6,
+  "checks": [
+    {
+      "name": "all 12 missions complete by autopilot",
+      "pass": true,
+      "detail": "m1, m2, m3, m4, m5, m6, m7, m8, m9, m10, m11, m12 in 442s total"
+    },
+    {
+      "name": "helicopter appears in the m9 arc run",
+      "pass": true,
+      "detail": "heli active during m9"
+    },
+    {
+      "name": "helicopter appears in the m12 arc run",
+      "pass": true,
+      "detail": "heli active during m12"
+    },
+    {
+      "name": "weapon switching and pickups in the m10 run",
+      "pass": true,
+      "detail": "SMG/shotgun used during m10"
+    },
+    {
+      "name": "garage purchase in the m11 run",
+      "pass": true,
+      "detail": "purchase made during m11"
+    },
+    {
+      "name": "zero console errors",
+      "pass": true,
+      "detail": "clean"
+    }
+  ]
+}
