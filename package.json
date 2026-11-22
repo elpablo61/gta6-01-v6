@@ -1,0 +1,1 @@
+{"description":"Crescent Bay — an open-world crime game for make.fun's Make GTA 6 bounty","devDependencies":{"playwright":"^1.49.0"},"name":"gta6-01-v6","private":true,"scripts":{"dossier":"mkdir -p out && MAKEFUN_OUTPUT_DIR=out node main.ts","serve":"node serve.ts --port 8080","start":"node serve.ts"},"type":"module","version":"6.0.0"}
