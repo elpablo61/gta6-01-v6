@@ -3,17 +3,29 @@
 // Station 1 ("Bay FM") is the default on New Game. The radio keeps
 // playing through missions and free roam. Music only, no talk.
 //
-// NOTE on audio.js: at the time this file was written there was no
-// game/src/audio.js in the tree (Builder A-2 is writing it in parallel),
-// so radio.js owns its own AudioContext and its own step sequencer and
-// does NOT depend on audio.js. It still calls the contract audio hook
-// G.audio?.play('radioSwitch') defensively on every station change, and
-// exposes attachRadioContext(G, ctx) so audio.js can later share one
-// AudioContext with the radio instead of a second one.
+// AUDIO INTEGRATION (22 Nov, batch 2): audio.js (Builder A-2) owns the
+// single AudioContext and music bus. When G.audio.engine is present
+// (attached by audio.js's attachToGame), radio.js registers its three
+// station patterns with engine.registerMusicPattern() and drives the bus
+// with engine.setStation() / engine.startMusicLoop() / engine.stopMusic()
+// — one audio source, no double music. When no engine is present (Node
+// smoke tests, or audio.js not yet wired), radio.js falls back to its
+// own AudioContext and its own richer step sequencer (kick, hats, pads,
+// arps on top of the same bass lines), so the stations still play. The
+// contract hook G.audio?.play('radioSwitch') is still called on every
+// station change.
 export const RADIO_STATIONS = [
   { id: 'bay', name: 'Bay FM', genre: 'synthwave', bpm: 100, desc: 'Driving bass synthwave' },
   { id: 'jazz', name: 'Harbor Jazz', genre: 'swing', bpm: 84, desc: 'Slow swing jazz' },
   { id: 'rock', name: 'Crescent Rock', genre: 'rock', bpm: 132, desc: 'Driving rock riff' },
+];
+
+// Bass-line patterns for audio.js's music bus: one MIDI note per 8th
+// step, 0 = rest. Same musical identity as the fallback sequencer below.
+export const RADIO_PATTERNS = [
+  { bpm: 100, wave: 'sawtooth', bass: [33, 0, 33, 33, 29, 0, 29, 29, 36, 0, 36, 36, 31, 0, 31, 31] },
+  { bpm: 84, wave: 'triangle', bass: [36, 0, 38, 0, 33, 0, 35, 0, 38, 0, 40, 0, 31, 0, 33, 0] },
+  { bpm: 132, wave: 'square', bass: [40, 40, 43, 45, 40, 40, 47, 45, 40, 40, 43, 45, 47, 45, 43, 40] },
 ];
 
 export const RADIO_MASTER_GAIN = 0.16;
@@ -25,6 +37,7 @@ export function createRadioState() {
     station: 0, started: false, nodes: null,
     eqLevel: 0, prevR: false, badgeEl: null,
     step: 0, nextTime: 0, timer: null, ctx: null,
+    engineMode: false, patternsRegistered: false,
   };
 }
 
@@ -81,6 +94,29 @@ export function attachRadioContext(G, ctx) {
   ensureRadioState(G);
   if (!ctx) return false;
   G.radio.ctx = ctx;
+  return true;
+}
+
+// The audio.js engine, when attached to G (G.audio.engine with
+// registerMusicPattern / startMusicLoop). Null when audio.js is not
+// wired yet — radio.js then uses its own AudioContext (fallback).
+export function audioEngine(G) {
+  const a = G && G.audio;
+  if (a && a.engine && typeof a.engine.registerMusicPattern === 'function'
+    && typeof a.engine.startMusicLoop === 'function') {
+    return a.engine;
+  }
+  return null;
+}
+
+export function registerRadioPatterns(G) {
+  ensureRadioState(G);
+  const engine = audioEngine(G);
+  if (!engine) return false;
+  for (let i = 0; i < RADIO_PATTERNS.length; i++) {
+    engine.registerMusicPattern(i, RADIO_PATTERNS[i]);
+  }
+  G.radio.patternsRegistered = true;
   return true;
 }
 
@@ -238,6 +274,19 @@ function scheduleAhead(G) {
 export function startRadio(G) {
   ensureRadioState(G);
   if (G.radio.started) return true;
+  // Preferred path: the audio.js engine owns the one AudioContext.
+  const engine = audioEngine(G);
+  if (engine) {
+    if (!G.radio.patternsRegistered) registerRadioPatterns(G);
+    engine.setStation(G.radio.station);
+    engine.startMusicLoop();
+    G.radio.engineMode = true;
+    G.radio.started = true;
+    ensureStationBadge(G);
+    return true;
+  }
+  // Fallback path: no engine — own AudioContext + own step sequencer.
+  G.radio.engineMode = false;
   const nodes = ensureNodes(G);
   if (!nodes) return false; // No AudioContext yet (no gesture / headless).
   const ctx = nodes.ctx;
@@ -256,6 +305,12 @@ export function startRadio(G) {
 
 export function stopRadio(G) {
   ensureRadioState(G);
+  if (G.radio.engineMode) {
+    const engine = audioEngine(G);
+    if (engine && typeof engine.stopMusic === 'function') engine.stopMusic();
+    G.radio.started = false;
+    return true;
+  }
   if (G.radio.timer !== null && typeof clearInterval === 'function') {
     clearInterval(G.radio.timer);
   }
@@ -276,7 +331,15 @@ export function setStation(G, index) {
   // Restart the pattern from the top of the loop so the new station is
   // audible immediately instead of mid-bar.
   G.radio.step = 0;
-  if (G.radio.started && G.radio.nodes) {
+  if (G.radio.started && G.radio.engineMode) {
+    const engine = audioEngine(G);
+    if (engine) {
+      // Restart the bus so the new station's tempo takes effect.
+      if (typeof engine.stopMusic === 'function') engine.stopMusic();
+      engine.setStation(next);
+      engine.startMusicLoop();
+    }
+  } else if (G.radio.started && G.radio.nodes) {
     G.radio.nextTime = G.radio.nodes.ctx.currentTime + 0.05;
   }
   updateStationBadge(G);

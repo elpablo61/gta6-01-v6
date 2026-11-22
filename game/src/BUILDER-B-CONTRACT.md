@@ -90,12 +90,16 @@ No module reads another builder's internals beyond the fields listed here.
 - radio.js — `RADIO_STATIONS`, `createRadioState`, `cycleStation`,
   `setStation`, `startRadio`, `stopRadio`, `updateRadio`,
   `currentStationName`, plus `currentStation`, `attachRadioContext`
-  (audio.js can share one AudioContext later). NOTE (22 Nov, batch 2):
-  no game/src/audio.js existed when radio.js was written, so radio.js
-  owns its own AudioContext + step sequencer and does NOT depend on
-  audio.js; it still calls `G.audio?.play('radioSwitch')` defensively.
-  A `#radio-station` DOM badge mirrors the station name for the
-  scripted check (hud.js also draws it on canvas).
+  (audio.js can share one AudioContext later), `RADIO_PATTERNS`
+  (bass lines for the audio.js music bus), `audioEngine` (detects the
+  attached audio.js engine) and `registerRadioPatterns`. NOTE (22 Nov,
+  batch 2): audio.js (A-2, commit af9acb4) landed DURING batch 2, so
+  radio.js was wired to it in-session: when G.audio.engine is present
+  radio.js registers its 3 patterns with
+  engine.registerMusicPattern() and drives engine.setStation() /
+  startMusicLoop() / stopMusic() — ONE audio source, no double music.
+  With no engine present it falls back to its own AudioContext +
+  step sequencer (kick/hats/pads/arps over the same bass lines).
 - missions.js — `MISSION_ARC`, `startMission`, `acceptMissionDialog`,
   `updateMissions`, `failMission`, `completeMissionStage`,
   `missionObjectiveText`, `currentMission`, plus `missionDef`,
