@@ -77,13 +77,37 @@ No module reads another builder's internals beyond the fields listed here.
   `drawHelicopter`.
 - garage.js — `GARAGE_UPGRADES`, `GARAGE_PAINTS`, `createGarageState`,
   `updateGarage`, `openGarage`, `closeGarage`, `buyUpgrade`,
-  `buyPaint`, `isInGarageZone`, `drawGarageZone`.
+  `buyPaint`, `isInGarageZone`, `drawGarageZone`, plus
+  `garageEscapeConsumed` (main.js MUST call this before its own pause
+  toggle — Esc closes the garage first), `garagePurchaseCount` (m11
+  watches this), `cheapestAvailableUpgrade` (autopilot m11 step),
+  `nextUpgradePrice`, `effectiveTopSpeed`, `damageMultiplierForCar`,
+  `applyUpgradesToCar`, `garageZone`. Armor also syncs
+  `G.player.armorFactor` while the menu is open (combat.js reads that
+  field in damagePlayer); vehicles.js should use
+  `damageMultiplierForCar(car)` for car collision damage. While the
+  menu is open `G.paused` is true — main.js skips world updates then.
 - radio.js — `RADIO_STATIONS`, `createRadioState`, `cycleStation`,
   `setStation`, `startRadio`, `stopRadio`, `updateRadio`,
-  `currentStationName`.
+  `currentStationName`, plus `currentStation`, `attachRadioContext`
+  (audio.js can share one AudioContext later). NOTE (22 Nov, batch 2):
+  no game/src/audio.js existed when radio.js was written, so radio.js
+  owns its own AudioContext + step sequencer and does NOT depend on
+  audio.js; it still calls `G.audio?.play('radioSwitch')` defensively.
+  A `#radio-station` DOM badge mirrors the station name for the
+  scripted check (hud.js also draws it on canvas).
 - missions.js — `MISSION_ARC`, `startMission`, `acceptMissionDialog`,
   `updateMissions`, `failMission`, `completeMissionStage`,
-  `missionObjectiveText`, `currentMission`.
+  `missionObjectiveText`, `currentMission`, plus `missionDef`,
+  `nextMissionDef`, `landmark`, `nearestRoadPoint`, `gridRoute`,
+  `completeMission`, `clearMissionEntities`, `checkMissionTrigger`
+  (auto-offer radius 50 at the Fixer Garage),
+  `m2OnFootTarget` / `courierRoadPoint` (m2 freeze-trap fallback:
+  walk to the courier's nearest ROAD point, never at the moving
+  courier). m7/m9/m12 set their wanted cover AFTER the mission starts
+  (setHeat inside accept/setup, never before). m12 death/caught
+  restarts from stage 0 = stage (a). `G.onMissionComplete(def)` is
+  called on completion (autosave hook for save.js).
 - autopilot.js — `createAutopilotState`, `updateAutopilot`,
   `autopilotDriveTo`, `autopilotChase`, `findRouteGrid`.
 - hud.js — `drawHud`, `drawMinimap`, `drawWantedStars`,
