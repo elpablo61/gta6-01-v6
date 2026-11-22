@@ -162,21 +162,27 @@ async function poseCover(page) {
 }
 
 async function poseMission(page) {
-  // m8 shootout in progress: player on foot in the arena, enemies
-  // alive, ammo spent — muzzle flash and the objective banner visible.
+  // Probe 22 Nov 13:4x UTC: m8 finishes in ~24s and the whole on-foot
+  // shootout lasts only ~4s (10–14s in), and the autopilot fights it
+  // with an SMG picked up en route — pistol ammo NEVER drops below 48,
+  // so an ammo-based condition can never fire and the mission is 'done'
+  // long before a 240s wait ends. Wait only for the real engagement:
+  // stage 0, on foot, nearest enemy within 350.
   await startPlaying(page, 'm8');
   await waitFor(
     page,
-    `() => window.__game && window.__game.mission.state === 'active' && window.__game.enemies.length > 0 && window.__game.player.onFoot`,
+    `() => {
+      const G = window.__game;
+      if (!G || !G.mission || G.mission.state !== 'active' || G.mission.stage !== 0) return false;
+      if (!G.player.onFoot) return false;
+      if (!G.enemies || G.enemies.length === 0) return false;
+      const d = Math.min(...G.enemies.map((e) => Math.hypot(e.x - G.player.x, e.y - G.player.y)));
+      return d < 350;
+    }`,
     240000,
-    'm8 shootout with the player on foot',
+    'm8 shootout engaged on foot (enemy near)',
   );
-  await sleep(2500);
-  const s = await snapState(page);
-  if (s.ammo >= 48) {
-    // No shot fired yet — wait a little longer for the burst.
-    await sleep(3000);
-  }
+  await sleep(600);
 }
 
 async function poseNight(page) {
@@ -195,11 +201,33 @@ async function poseNight(page) {
   await page.evaluate(() => window.__crescent.addHeat(30));
   await waitFor(
     page,
-    `() => window.__game && window.__game.stars >= 4 && window.__game.police.roadblocks.length > 0 && !window.__game.player.onFoot`,
+    `() => {
+      const G = window.__game;
+      if (!G || G.stars < 4 || !G.player || G.player.onFoot) return false;
+      const rbs = (G.police && G.police.roadblocks) || [];
+      if (rbs.length === 0) return false;
+      // A roadblock that merely exists is usually off-frame: wait until
+      // one is close enough to the player to be visible in the shot.
+      const d = Math.min(...rbs.map((rb) => Math.hypot(rb.x - G.player.x, rb.y - G.player.y)));
+      if (d >= 450) return false;
+      // And wait until the player is mid-block, not at a junction:
+      // street-lamp pools sit at junctions, and a lamp pool stacked on
+      // the headlights blows the player car out into one white bloom
+      // (two full-run frames lost the player that way). Junctions are
+      // at 200+i*400 on both axes.
+      let jx = 1e9;
+      for (let i = 0; i < 8; i++) {
+        for (let j = 0; j < 8; j++) {
+          jx = Math.min(jx, Math.hypot(G.player.x - (200 + i * 400), G.player.y - (200 + j * 400)));
+        }
+      }
+      return jx >= 120;
+    }`,
     240000,
-    '4 stars with a roadblock while driving',
+    '4 stars with a roadblock near the player while driving',
   );
-  await sleep(1200);
+  // Short settle: the roadblock is in frame now, do not drive past it.
+  await sleep(800);
 }
 
 async function poseStart(page) {

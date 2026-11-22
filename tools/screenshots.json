@@ -1,0 +1,29 @@
+{
+  "at": "2026-11-22T13:47:08.166Z",
+  "shots": [
+    {
+      "file": "1-cover.jpg",
+      "bytes": 97516,
+      "quality": 80,
+      "errors": []
+    },
+    {
+      "file": "2-mission.jpg",
+      "bytes": 92233,
+      "quality": 80,
+      "errors": []
+    },
+    {
+      "file": "3-night.jpg",
+      "bytes": 87482,
+      "quality": 80,
+      "errors": []
+    },
+    {
+      "file": "4-start.jpg",
+      "bytes": 94853,
+      "quality": 80,
+      "errors": []
+    }
+  ]
+}
