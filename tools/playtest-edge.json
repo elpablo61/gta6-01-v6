@@ -1,0 +1,78 @@
+{
+  "suite": "edge",
+  "passed": 14,
+  "total": 14,
+  "at": "2026-11-22T13:16:47.101Z",
+  "checks": [
+    {
+      "name": "walls block the player",
+      "pass": true,
+      "detail": "pushed east into building at (417.10603705071844, 257.55068036168814), stopped outside"
+    },
+    {
+      "name": "enter and exit a car five times",
+      "pass": true,
+      "detail": "5 enter/exit cycles"
+    },
+    {
+      "name": "spray shop clears 5 stars to 0",
+      "pass": true,
+      "detail": "heat 95 -> <5, stars 5 -> 0"
+    },
+    {
+      "name": "pause save reload continue restores cash",
+      "pass": true,
+      "detail": "cash 1234 restored"
+    },
+    {
+      "name": "corrupt save starts fresh without crashing",
+      "pass": true,
+      "detail": "slot 0 corrupt, new game still starts"
+    },
+    {
+      "name": "radio cycles all three stations",
+      "pass": true,
+      "detail": "Bay FM -> Harbor Jazz -> Crescent Rock"
+    },
+    {
+      "name": "all three save slots round-trip",
+      "pass": true,
+      "detail": "slots 1-3: cash 100 / 200 / 300 restored"
+    },
+    {
+      "name": "weapon crate pickup grants the SMG",
+      "pass": true,
+      "detail": "walked over the gun-store SMG crate"
+    },
+    {
+      "name": "weapon switching with 1 2 3 and Q",
+      "pass": true,
+      "detail": "2 -> smg, 3 -> shotgun, Q -> pistol, 1 -> pistol"
+    },
+    {
+      "name": "helicopter shadows at 3 stars",
+      "pass": true,
+      "detail": "heli shadowing, spotlight on, stars 3"
+    },
+    {
+      "name": "helicopter retreats when shot down",
+      "pass": true,
+      "detail": "heli smoking"
+    },
+    {
+      "name": "garage purchase works from the menu",
+      "pass": true,
+      "detail": "purchase 0 -> 1, cash 5000 -> 4200"
+    },
+    {
+      "name": "game over respawn keeps the game going",
+      "pass": true,
+      "detail": "game over DOWN, respawned at full health"
+    },
+    {
+      "name": "zero console errors",
+      "pass": true,
+      "detail": "clean"
+    }
+  ]
+}

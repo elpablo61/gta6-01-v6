@@ -63,12 +63,27 @@ export function updateWantedHeat(G, dt) {
   ensurePoliceState(G);
   const stars = starsFromHeat(G.heat);
   G.stars = stars;
-  if (stars === 0) return;
+  // No early return on stars === 0: the Spray Shop drain below must be
+  // able to finish the job (heat 12 -> 0), and hiding decay must also
+  // run heat down to zero. Returning early here used to freeze heat at
+  // ~12 forever once stars hit 0 — the shop could never fully clear a
+  // wanted level.
+  const p = G.player;
+  // Spray Shop repaint clears heat fast while the player is inside it.
+  // A repaint is NOT hiding, so the helicopter spotlight does NOT block
+  // it: the drain runs first, before the spotlight early-return below.
+  // (Before this fix the spotlight return sat above the drain, so at
+  // 5 stars — exactly when the helicopter is always overhead — the
+  // Spray Shop could never clear heat at all.)
+  const shop = G.world && G.world.sprayShop;
+  if (shop && Math.hypot(p.x - shop.x, p.y - shop.y) < POLICE_CONFIG.sprayShopRadius) {
+    G.heat = Math.max(0, G.heat - POLICE_CONFIG.sprayShopDrainPerSecond * dt);
+    G.stars = starsFromHeat(G.heat);
+  }
   if (G.helicopter && G.helicopter.spotlightOnPlayer) {
     G.police.hideTimer = 0;
     return;
   }
-  const p = G.player;
   let nearest = Infinity;
   for (const cop of G.police.footCops) {
     nearest = Math.min(nearest, Math.hypot(cop.x - p.x, cop.y - p.y));
@@ -84,12 +99,6 @@ export function updateWantedHeat(G, dt) {
     }
   } else {
     G.police.hideTimer = 0;
-  }
-  // Spray Shop repaint clears heat fast while the player is inside it.
-  const shop = G.world && G.world.sprayShop;
-  if (shop && Math.hypot(p.x - shop.x, p.y - shop.y) < POLICE_CONFIG.sprayShopRadius) {
-    G.heat = Math.max(0, G.heat - POLICE_CONFIG.sprayShopDrainPerSecond * dt);
-    G.stars = starsFromHeat(G.heat);
   }
 }
 

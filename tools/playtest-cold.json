@@ -2,12 +2,12 @@
   "suite": "cold",
   "passed": 10,
   "total": 10,
-  "at": "2026-11-22T13:10:52.492Z",
+  "at": "2026-11-22T13:14:03.351Z",
   "checks": [
     {
       "name": "title appears in under 2s",
       "pass": true,
-      "detail": "214ms"
+      "detail": "184ms"
     },
     {
       "name": "new game starts",
@@ -17,7 +17,7 @@
     {
       "name": "player walks on foot",
       "pass": true,
-      "detail": "moved 252 units"
+      "detail": "moved 255 units"
     },
     {
       "name": "player enters a parked car",
@@ -42,7 +42,7 @@
     {
       "name": "HUD canvas is live",
       "pass": true,
-      "detail": "canvas 1280px, data 188090 chars"
+      "detail": "canvas 1280px, data 189006 chars"
     },
     {
       "name": "mission dialog opens and accepts with E",

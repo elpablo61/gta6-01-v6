@@ -1,0 +1,18 @@
+{
+  "suite": "fps",
+  "passed": 2,
+  "total": 2,
+  "at": "2026-11-22T13:17:10.994Z",
+  "checks": [
+    {
+      "name": "fps at least 50 in a wanted chase",
+      "pass": true,
+      "detail": "avg 60.0, min 60, max 60 over 30 samples"
+    },
+    {
+      "name": "zero console errors",
+      "pass": true,
+      "detail": "clean"
+    }
+  ]
+}

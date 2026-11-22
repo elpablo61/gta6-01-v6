@@ -34,6 +34,14 @@ const MISSION_IDS = ['m1', 'm2', 'm3', 'm4', 'm5', 'm6', 'm7', 'm8', 'm9', 'm10'
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
+// Press a key and HOLD it ~60ms: the game samples the key set once per
+// frame, so a zero-length press (Playwright's default down+up) can land
+// entirely between two frames and never be seen. A human press lasts
+// far longer than one frame; the hold makes the harness match that.
+async function press(page, key) {
+  await page.keyboard.press(key, { delay: 60 });
+}
+
 function fail(msg) {
   throw new Error(msg);
 }
@@ -251,7 +259,7 @@ async function runCold(browser) {
     await suite.check('player enters a parked car', async () => {
       const dist = await moveNextToParkedCar(page);
       checkTrue(dist >= 0, 'no parked car found');
-      await page.keyboard.press('KeyE');
+      await press(page, 'KeyE');
       await waitFor(page, `() => window.__game && !window.__game.player.onFoot`, 5000, 'player in car');
       return `nearest parked car was ${dist} units away`;
     });
@@ -267,7 +275,7 @@ async function runCold(browser) {
     });
 
     await suite.check('player exits and shoots', async () => {
-      await page.keyboard.press('KeyE');
+      await press(page, 'KeyE');
       await waitFor(page, `() => window.__game && window.__game.player.onFoot`, 5000, 'player on foot');
       const before = await snap(page);
       await page.mouse.click(700, 350);
@@ -278,10 +286,10 @@ async function runCold(browser) {
     });
 
     await suite.check('pause then resume', async () => {
-      await page.keyboard.press('Escape');
+      await press(page, 'Escape');
       await waitFor(page, `() => window.__game && window.__game.state === 'paused'`, 3000, 'state paused');
       await page.waitForSelector('#pause-menu:visible', { timeout: 3000 });
-      await page.keyboard.press('Escape');
+      await press(page, 'Escape');
       await waitFor(page, `() => window.__game && window.__game.state === 'playing'`, 3000, 'state playing again');
       return 'paused -> playing';
     });
@@ -302,7 +310,7 @@ async function runCold(browser) {
       const started = await page.evaluate(() => window.__crescent.startMission('m1'));
       checkTrue(started, 'startMission(m1) returned false');
       await page.waitForSelector('#mission-dialog:visible', { timeout: 5000 });
-      await page.keyboard.press('KeyE');
+      await press(page, 'KeyE');
       await waitFor(page, `() => window.__game && window.__game.mission.state === 'active'`, 5000, 'mission active');
       return 'm1 dialog -> active';
     });
@@ -347,15 +355,22 @@ async function runEdge(browser) {
       for (let i = 0; i < 5; i++) {
         const dist = await moveNextToParkedCar(page);
         checkTrue(dist >= 0, `round ${i + 1}: no parked car found`);
-        await page.keyboard.press('KeyE');
+        await press(page, 'KeyE');
         await waitFor(page, `() => window.__game && !window.__game.player.onFoot`, 5000, `round ${i + 1} enter`);
-        await page.keyboard.press('KeyE');
+        await press(page, 'KeyE');
         await waitFor(page, `() => window.__game && window.__game.player.onFoot`, 5000, `round ${i + 1} exit`);
       }
       return '5 enter/exit cycles';
     });
 
     await suite.check('spray shop clears 5 stars to 0', async () => {
+      // Drive in by car: on foot at 5 stars the player gets arrested
+      // standing still before the drain finishes. Enter a car first,
+      // then move car + player into the Spray Shop radius.
+      const dist = await moveNextToParkedCar(page);
+      checkTrue(dist >= 0, 'no parked car found');
+      await press(page, 'KeyE');
+      await waitFor(page, `() => window.__game && !window.__game.player.onFoot`, 5000, 'player in car');
       await page.evaluate(() => window.__crescent.addHeat(95));
       await waitFor(page, `() => window.__game && window.__game.stars >= 5`, 5000, 'stars 5');
       await page.evaluate(() => {
@@ -380,7 +395,7 @@ async function runEdge(browser) {
       await page.evaluate(() => {
         window.__game.player.cash = 1234;
       });
-      await page.keyboard.press('Escape');
+      await press(page, 'Escape');
       await page.waitForSelector('#pause-menu:visible', { timeout: 3000 });
       await page.click('#save-btn');
       await page.waitForFunction(
@@ -416,7 +431,7 @@ async function runEdge(browser) {
         page.evaluate(() => window.__game.systems.radio.currentStationName(window.__game));
       names.push(await readName());
       for (let i = 0; i < 3; i++) {
-        await page.keyboard.press('KeyR');
+        await press(page, 'KeyR');
         await sleep(400);
         names.push(await readName());
         checkTrue(names[i + 1] !== names[i], `station did not change on press ${i + 1} (still ${names[i]})`);
@@ -447,7 +462,7 @@ async function runEdge(browser) {
     await suite.check('weapon crate pickup grants the SMG', async () => {
       const s0 = await snap(page);
       if (!s0.onFoot) {
-        await page.keyboard.press('KeyE');
+        await press(page, 'KeyE');
         await waitFor(page, `() => window.__game && window.__game.player.onFoot`, 5000, 'player on foot');
       }
       const moved = await page.evaluate(() => {
@@ -469,16 +484,16 @@ async function runEdge(browser) {
         w.giveWeapon(window.__game, 'smg');
         w.giveWeapon(window.__game, 'shotgun');
       });
-      await page.keyboard.press('Digit2');
+      await press(page, 'Digit2');
       await sleep(200);
       checkEq((await snap(page)).weapon, 'smg', 'weapon after pressing 2');
-      await page.keyboard.press('Digit3');
+      await press(page, 'Digit3');
       await sleep(200);
       checkEq((await snap(page)).weapon, 'shotgun', 'weapon after pressing 3');
-      await page.keyboard.press('KeyQ');
+      await press(page, 'KeyQ');
       await sleep(200);
       checkEq((await snap(page)).weapon, 'pistol', 'weapon after Q from shotgun');
-      await page.keyboard.press('Digit1');
+      await press(page, 'Digit1');
       await sleep(200);
       checkEq((await snap(page)).weapon, 'pistol', 'weapon after pressing 1');
       return '2 -> smg, 3 -> shotgun, Q -> pistol, 1 -> pistol';
@@ -515,7 +530,7 @@ async function runEdge(browser) {
       // drive (teleport) into the zone, accept any dialog, then E again.
       const dist = await moveNextToParkedCar(page);
       checkTrue(dist >= 0, 'no parked car found');
-      await page.keyboard.press('KeyE');
+      await press(page, 'KeyE');
       await waitFor(page, `() => window.__game && !window.__game.player.onFoot`, 5000, 'player in car');
       await page.evaluate(() => {
         const G = window.__game;
@@ -530,11 +545,11 @@ async function runEdge(browser) {
         }
       });
       await sleep(600);
-      await page.keyboard.press('KeyE');
+      await press(page, 'KeyE');
       await sleep(400);
       const menuVisible = await page.evaluate(() => !!document.querySelector('#garage-menu'));
       if (!menuVisible) {
-        await page.keyboard.press('KeyE');
+        await press(page, 'KeyE');
       }
       await page.waitForSelector('#garage-menu:visible', { timeout: 5000 });
       const before = (await snap(page)).purchases;
