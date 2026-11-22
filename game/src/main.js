@@ -343,6 +343,12 @@ function startNewGame(G) {
   G.selectedSlot = keep.selectedSlot;
   G.activeSlot = keep.selectedSlot;
   G.state = 'playing';
+  // The New Game click itself must not leak into the first playing
+  // frame: its justClicked edge would fire one pistol shot (ammo 48
+  // -> 47) and add 2 heat before the player has done anything. Clear
+  // both inputs' edge flags so the first playing snapshot is clean.
+  clearEdgeFlags(G.input);
+  clearEdgeFlags(G.autoInput);
   bootWorldEntities(G);
   showOnly(null);
   if (G.audio) G.audio.play && G.audio.play('uiClick');
@@ -356,6 +362,10 @@ function continueGame(G) {
     return;
   }
   G.state = 'playing';
+  // Same leak as New Game: the Continue click's justClicked edge
+  // would fire a shot on the first playing frame. Clear it.
+  clearEdgeFlags(G.input);
+  clearEdgeFlags(G.autoInput);
   showOnly(null);
   if (G.audio) G.audio.play && G.audio.play('uiClick');
 }
@@ -415,6 +425,10 @@ function respawn(G) {
     G.systems.missions.failMission(G, G.caughtReason || 'down');
   }
   G.state = 'playing';
+  // Same leak as New Game: the Respawn click's justClicked edge would
+  // fire a shot on the first frame after respawning. Clear it.
+  clearEdgeFlags(G.input);
+  clearEdgeFlags(G.autoInput);
   showOnly(null);
 }
 
@@ -535,12 +549,23 @@ export async function startGame() {
     }
     acc += elapsed;
 
+    // Garage Esc FIRST (Builder C fix for the garage pause deadlock):
+    // openGarage sets G.paused = true, so the frame loop skips
+    // stepGame while the menu is open — updateGarage's own Esc branch
+    // can never run there. Ask the garage's Esc handler here, before
+    // the pause toggle, and never let one Esc press both close the
+    // menu AND pause the game.
+    const input = G._realInput || G.input;
+    const garageSys = G.systems && G.systems.garage;
+    const escConsumedByGarage = garageSys && typeof garageSys.garageEscapeConsumed === 'function'
+      ? garageSys.garageEscapeConsumed(G)
+      : false;
+
     // Pause toggle BEFORE the early exit: once paused, the key must
     // still be seen (v1 bug: pause could be entered but never left).
-    const input = G._realInput || G.input;
     const pausePressed = input.pressed && (input.pressed.has('Escape') || input.pressed.has('KeyP'));
     const garageOpen = G.garage && G.garage.open;
-    if (pausePressed && !garageOpen) {
+    if (pausePressed && !garageOpen && !escConsumedByGarage) {
       if (G.state === 'playing') pauseGame(G);
       else if (G.state === 'paused') resumeGame(G);
     }
@@ -552,6 +577,13 @@ export async function startGame() {
       G._frame++;
       if (G.state === 'playing' && !G.paused) {
         stepGame(G, STEP);
+      } else if (G.state === 'playing' && G.paused && G.garage && G.garage.open) {
+        // Garage menu open: the world is paused, but the autopilot's
+        // safety net must still run, so a menu left open (m11) gets
+        // bought + closed instead of stalling the game forever.
+        if (G.systems.autopilot && typeof G.systems.autopilot.updateAutopilot === 'function') {
+          G.systems.autopilot.updateAutopilot(G, STEP);
+        }
       } else if (G.state === 'title') {
         stepTitleBackground(G, STEP);
       }
