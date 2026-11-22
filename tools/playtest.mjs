@@ -509,6 +509,14 @@ async function runEdge(browser) {
     });
 
     await suite.check('garage purchase works from the menu', async () => {
+      // The garage menu only opens when the player is IN A CAR inside
+      // the zone — and the garage is also the mission trigger, so the
+      // first E may be swallowed by the m1 dialog instead. Enter a car,
+      // drive (teleport) into the zone, accept any dialog, then E again.
+      const dist = await moveNextToParkedCar(page);
+      checkTrue(dist >= 0, 'no parked car found');
+      await page.keyboard.press('KeyE');
+      await waitFor(page, `() => window.__game && !window.__game.player.onFoot`, 5000, 'player in car');
       await page.evaluate(() => {
         const G = window.__game;
         G.player.cash = 5000;
@@ -516,8 +524,18 @@ async function runEdge(browser) {
         G.stars = 0;
         G.player.x = 600;
         G.player.y = 1000;
+        if (G.player.car) {
+          G.player.car.x = 600;
+          G.player.car.y = 1000;
+        }
       });
+      await sleep(600);
       await page.keyboard.press('KeyE');
+      await sleep(400);
+      const menuVisible = await page.evaluate(() => !!document.querySelector('#garage-menu'));
+      if (!menuVisible) {
+        await page.keyboard.press('KeyE');
+      }
       await page.waitForSelector('#garage-menu:visible', { timeout: 5000 });
       const before = (await snap(page)).purchases;
       const cashBefore = (await snap(page)).cash;

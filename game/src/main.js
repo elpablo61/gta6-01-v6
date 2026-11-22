@@ -327,6 +327,16 @@ function startNewGame(G) {
     audio: G.audio,
     audioEngine: G.audioEngine,
     selectedSlot: G.selectedSlot,
+    // Bound gameplay hooks: createGameState() leaves all five null and
+    // only startGame() wires them, so a New Game that drops them breaks
+    // the normal path — addHeat throws, arrests do nothing, the
+    // game-over screen never shows, heli bullets stop damaging, and
+    // mission autosaves silently stop. Keep them across the reset.
+    addHeat: G.addHeat,
+    takeHelicopterDamage: G.takeHelicopterDamage,
+    onCaught: G.onCaught,
+    onPlayerDown: G.onPlayerDown,
+    onMissionComplete: G.onMissionComplete,
   };
   for (const key of Object.keys(G)) delete G[key];
   Object.assign(G, fresh);
@@ -341,6 +351,11 @@ function startNewGame(G) {
   G.audio = keep.audio;
   G.audioEngine = keep.audioEngine;
   G.selectedSlot = keep.selectedSlot;
+  G.addHeat = keep.addHeat;
+  G.takeHelicopterDamage = keep.takeHelicopterDamage;
+  G.onCaught = keep.onCaught;
+  G.onPlayerDown = keep.onPlayerDown;
+  G.onMissionComplete = keep.onMissionComplete;
   G.activeSlot = keep.selectedSlot;
   G.state = 'playing';
   // The New Game click itself must not leak into the first playing
