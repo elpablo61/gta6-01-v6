@@ -78,7 +78,10 @@ async function freshPage(browser) {
 async function waitFor(page, expr, timeoutMs, label) {
   const start = Date.now();
   while (Date.now() - start < timeoutMs) {
-    if (await page.evaluate(expr)) return true;
+    // The expression is an arrow function as a string: call it, or
+    // Playwright returns the function itself (undefined) and the
+    // wait never ends.
+    if (await page.evaluate(`(${expr})()`)) return true;
     await sleep(250);
   }
   fail('timeout waiting for: ' + label);

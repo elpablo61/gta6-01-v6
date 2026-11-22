@@ -133,7 +133,10 @@ async function snap(page) {
 async function waitFor(page, expr, timeoutMs, label) {
   const start = Date.now();
   while (Date.now() - start < timeoutMs) {
-    if (await page.evaluate(expr)) return true;
+    // The expression is an arrow function as a string: call it, or
+    // Playwright returns the function itself (undefined) and the
+    // wait never ends.
+    if (await page.evaluate(`(${expr})()`)) return true;
     await sleep(250);
   }
   fail('timeout waiting for: ' + label);
@@ -258,8 +261,9 @@ async function runCold(browser) {
       await sleep(2000);
       const s = await snap(page);
       await page.keyboard.up('KeyW');
+      checkTrue(!s.onFoot, 'player is on foot, not driving');
       checkTrue(s.speed > 50, `speed only ${s.speed}`);
-      return `speed ${s.speed}`;
+      return `in car, speed ${s.speed}`;
     });
 
     await suite.check('player exits and shoots', async () => {

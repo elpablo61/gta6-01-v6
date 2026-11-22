@@ -1,0 +1,58 @@
+{
+  "suite": "cold",
+  "passed": 10,
+  "total": 10,
+  "at": "2026-11-22T13:10:52.492Z",
+  "checks": [
+    {
+      "name": "title appears in under 2s",
+      "pass": true,
+      "detail": "214ms"
+    },
+    {
+      "name": "new game starts",
+      "pass": true,
+      "detail": "state=playing"
+    },
+    {
+      "name": "player walks on foot",
+      "pass": true,
+      "detail": "moved 252 units"
+    },
+    {
+      "name": "player enters a parked car",
+      "pass": true,
+      "detail": "nearest parked car was 355 units away"
+    },
+    {
+      "name": "player drives",
+      "pass": true,
+      "detail": "in car, speed 430"
+    },
+    {
+      "name": "player exits and shoots",
+      "pass": true,
+      "detail": "ammo 48 -> 47"
+    },
+    {
+      "name": "pause then resume",
+      "pass": true,
+      "detail": "paused -> playing"
+    },
+    {
+      "name": "HUD canvas is live",
+      "pass": true,
+      "detail": "canvas 1280px, data 188090 chars"
+    },
+    {
+      "name": "mission dialog opens and accepts with E",
+      "pass": true,
+      "detail": "m1 dialog -> active"
+    },
+    {
+      "name": "zero console errors",
+      "pass": true,
+      "detail": "clean"
+    }
+  ]
+}
