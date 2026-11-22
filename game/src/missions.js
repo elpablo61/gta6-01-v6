@@ -20,33 +20,31 @@ import { spawnArenaCrates } from './weapons.js';
 import { forceHelicopter } from './helicopter.js';
 import { setHeat } from './police.js';
 import { garagePurchaseCount } from './garage.js';
+import { MISSION_ARC as CONFIG_MISSION_ARC } from './config.js';
 
-export const MISSION_ARC = [
-  { id: 'm1', name: 'First Job', fixer: 'Mara', type: 'drive', reward: 400, timeLimit: 300,
-    hook: 'Rook. Small job, good money. Pick up the package at the market and drop it downtown. Don\'t keep Mara waiting.' },
-  { id: 'm2', name: 'Tail Chase', fixer: 'Mara', type: 'chase', reward: 700, timeLimit: 300,
-    hook: 'A courier is moving product through my streets. Ram his car four times, hard and fast, and he\'ll slow down enough to stop.' },
-  { id: 'm3', name: 'Hot Wheels', fixer: 'Dex', type: 'checkpoints', reward: 900, timeLimit: 240,
-    hook: 'Three drops, one clock. Club, marina, airport — hit them all before the timer runs out and the money is yours.' },
-  { id: 'm4', name: 'Dockside', fixer: 'Mara', type: 'drive', reward: 1100, timeLimit: 360,
-    hook: 'A crate is waiting at the marina. Bring it to the hideout. The docks are hot tonight, so keep your eyes open.' },
-  { id: 'm5', name: 'Midnight Run', fixer: 'Dex', type: 'drive', reward: 1400, timeLimit: 300, night: true,
-    hook: 'Night run. Pick up at the club, drop at the docks. Headlights on, mouth shut. Dex is counting on you.' },
-  { id: 'm6', name: 'Collector', fixer: 'Dex', type: 'collector', reward: 1800, timeLimit: 420,
-    hook: 'Five money drops are stashed around the city. Collect them all, then bring yourself home to the hideout.' },
-  { id: 'm7', name: 'Highway Heat', fixer: 'Mara', type: 'escape', reward: 4600, timeLimit: 420,
-    hook: 'Drive to the airport — and the whole city will be on you. Lose them. All of them. Then the money is yours.' },
-  { id: 'm8', name: 'Crescent Job', fixer: 'Mara', type: 'shootout', reward: 6200, timeLimit: 600, enemies: 3,
-    hook: 'The big one starts here. Three guns in the old yard. Clear the ground, then get out clean. Mara is watching.' },
-  { id: 'm9', name: 'Sky Watch', fixer: 'Dex', type: 'heliEscape', reward: 2000, timeLimit: 420,
-    hook: 'The police helicopter is up and its spotlight is on you. Hiding won\'t work under that light — keep moving to the hideout.' },
-  { id: 'm10', name: 'Full Auto', fixer: 'Mara', type: 'shootout', reward: 2500, timeLimit: 420, enemies: 5, crates: true,
-    hook: 'Dockside, five guns, and crates with better hardware inside. Grab an SMG or a shotgun, clear the docks, reach the exit.' },
-  { id: 'm11', name: 'Tune-Up', fixer: 'Dex', type: 'garage', reward: 3000, timeLimit: 420,
-    hook: 'The Fixer Garage has the parts your car needs. Buy at least one upgrade, then run three checkpoints in the upgraded car.' },
-  { id: 'm12', name: 'Bay Finale', fixer: 'Mara', type: 'finale', reward: 8000, timeLimit: 600, enemies: 4,
-    hook: 'The bank. Four guns, a helicopter overhead, and the biggest score in Crescent Bay. Grab the loot and reach the plane.' },
-];
+// The arc table itself lives in config.js — the single source of truth
+// for order, rewards and time limits (batch 3 fix: batch 2 defined a
+// second table here). This module adds only the dialogue hooks, the
+// mission-type labels and the shootout details the arc logic needs.
+const MISSION_EXTRAS = {
+  m1: { type: 'drive', hook: 'Rook. Small job, good money. Pick up the package at the market and drop it downtown. Don\'t keep Mara waiting.' },
+  m2: { type: 'chase', hook: 'A courier is moving product through my streets. Ram his car four times, hard and fast, and he\'ll slow down enough to stop.' },
+  m3: { type: 'checkpoints', hook: 'Three drops, one clock. Club, marina, airport — hit them all before the timer runs out and the money is yours.' },
+  m4: { type: 'drive', hook: 'A crate is waiting at the marina. Bring it to the hideout. The docks are hot tonight, so keep your eyes open.' },
+  m5: { type: 'drive', hook: 'Night run. Pick up at the club, drop at the docks. Headlights on, mouth shut. Dex is counting on you.' },
+  m6: { type: 'collector', hook: 'Five money drops are stashed around the city. Collect them all, then bring yourself home to the hideout.' },
+  m7: { type: 'escape', hook: 'Drive to the airport — and the whole city will be on you. Lose them. All of them. Then the money is yours.' },
+  m8: { type: 'shootout', enemies: 3, hook: 'The big one starts here. Three guns in the old yard. Clear the ground, then get out clean. Mara is watching.' },
+  m9: { type: 'heliEscape', hook: 'The police helicopter is up and its spotlight is on you. Hiding won\'t work under that light — keep moving to the hideout.' },
+  m10: { type: 'shootout', enemies: 5, crates: true, hook: 'Dockside, five guns, and crates with better hardware inside. Grab an SMG or a shotgun, clear the docks, reach the exit.' },
+  m11: { type: 'garage', hook: 'The Fixer Garage has the parts your car needs. Buy at least one upgrade, then run three checkpoints in the upgraded car.' },
+  m12: { type: 'finale', enemies: 4, hook: 'The bank. Four guns, a helicopter overhead, and the biggest score in Crescent Bay. Grab the loot and reach the plane.' },
+};
+
+export const MISSION_ARC = CONFIG_MISSION_ARC.map((m) => ({
+  ...m,
+  ...(MISSION_EXTRAS[m.id] || {}),
+}));
 
 export const MISSION_DIALOG_RADIUS = 50;
 export const MISSION_MARKER_RADIUS = 70;
@@ -203,6 +201,14 @@ export function startMission(G, id) {
   G.mission.stage = 0;
   G.mission.state = 'dialog';
   G.mission.dialogOpen = true;
+  // Arm the accept edge detector: prevInteract is only written inside
+  // the dialog branch, so without this reset it stays true from the
+  // PREVIOUS dialog's accept (E held) and the next dialog can never
+  // see an E edge. Batch-3 fix: the live probe showed m2 stuck in
+  // dialog for 5 minutes after m1 — the autopilot pulsed E every
+  // frame, but prevInteract was already true, so no edge ever fired.
+  // A human is unaffected (they release E between dialogs).
+  G.mission.prevInteract = false;
   G.mission.timeLeft = def.timeLimit;
   G.mission.data = {};
   showMissionDialog(G, def);
@@ -220,6 +226,9 @@ export function acceptMissionDialog(G) {
   if (!def) return false;
   hideMissionDialog(G);
   G.mission.dialogOpen = false;
+  // Disarm the edge detector too, so no stale true leaks into the
+  // next dialog (see startMission).
+  G.mission.prevInteract = false;
   G.mission.state = 'active';
   G.mission.stage = 0;
   G.mission.timeLeft = def.timeLimit;
@@ -232,8 +241,9 @@ export function acceptMissionDialog(G) {
 function spawnArena(G, def, cx, cy, enemyCount, withCrates) {
   const rng = G.rng || Math.random;
   spawnArenaCover(G, cx, cy);
-  spawnHealthPickup(G, cx - 100, cy + 40, 30);
-  spawnHealthPickup(G, cx + 100, cy - 40, 30);
+  spawnHealthPickup(G, cx - 100, cy + 40, 40);
+  spawnHealthPickup(G, cx + 100, cy - 40, 40);
+  spawnHealthPickup(G, cx, cy + 130, 40);
   spawnAmmoPickup(G, cx, cy - 100, 24);
   spawnAmmoPickup(G, cx, cy + 100, 24);
   if (withCrates) spawnArenaCrates(G, cx, cy);
@@ -313,7 +323,16 @@ function updateCourier(G, dt) {
     c.x += Math.cos(c.angle) * c.speed * dt;
     c.y += Math.sin(c.angle) * c.speed * dt;
   }
-  if (dist < 70 && c.routeIndex < c.route.length - 1) c.routeIndex++;
+  // Arrived at a waypoint: advance, or — at the FINAL waypoint — drop
+  // the route so a new destination is picked next frame. Batch-3 fix:
+  // the old code only rebuilt when routeIndex >= route.length, which
+  // never happens (it caps at length - 1) — so the courier sat at its
+  // destination forever, spinning in place at a zero-length steering
+  // target, and the player's chase car spun with it at the same point.
+  if (dist < 70) {
+    if (c.routeIndex < c.route.length - 1) c.routeIndex++;
+    else c.route = null;
+  }
 }
 
 // On-foot fallback for the m2 chase (spec §9.1b): if the autopilot finds
@@ -485,6 +504,9 @@ export function clearMissionEntities(G) {
     G.cars = G.cars.filter((c) => c.id !== 'courier');
   }
   forceHelicopter(G, false);
+  // The shootout perimeter ends with the mission.
+  G.shootoutActive = false;
+  G.shootoutCenter = null;
   clearCombat(G);
 }
 
@@ -727,6 +749,20 @@ export function updateMissions(G, dt) {
     }
     const update = MISSION_UPDATES[def.id];
     if (update) update(G, def, dt);
+    // Shootout stages (m8 / m10 / m12 stage 0) hold a police perimeter:
+    // police.js keeps foot cops and patrol cars on a ring around the
+    // arena instead of walking onto Rook — otherwise a foot cop could
+    // arrest the stationary shooter mid-shootout and fail the mission.
+    // Cleared on stage advance, completion and failure (see
+    // clearMissionEntities). Batch-3 fix: batch 2 never set these, so
+    // the perimeter never engaged.
+    if ((def.id === 'm8' || def.id === 'm10' || def.id === 'm12') && G.mission.stage === 0) {
+      G.shootoutActive = true;
+      G.shootoutCenter = G.mission.data.arena || null;
+    } else {
+      G.shootoutActive = false;
+      G.shootoutCenter = null;
+    }
     return;
   }
   // No active mission: offer the next one at the garage.

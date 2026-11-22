@@ -5,7 +5,12 @@ import { WEAPON_DEFS } from './weapons.js';
 
 export const ENEMY_HP = 36;
 export const ENEMY_PISTOL_DAMAGE = 18;
-export const ENEMY_SHOOT_INTERVAL = 0.9;
+// Batch-3 tuning (v1/v2 lesson: tune the shootout DOWN, never the
+// autopilot up): enemies fire slower (1.5s base, was 0.9s) and with a
+// wider spread, so a 3-enemy arena is survivable on foot at 100 HP
+// while the player fires aimed bursts every 0.45s. Enemy damage stays
+// 18 — the pistol's damage, per spec.
+export const ENEMY_SHOOT_INTERVAL = 1.5;
 export const ENEMY_SHOOT_RANGE = 300;
 export const ENEMY_MOVE_RANGE = 240;
 
@@ -196,7 +201,7 @@ function updateEnemy(G, e, dt) {
   if (e.shootTimer <= 0 && dist < ENEMY_SHOOT_RANGE && p.onFoot) {
     e.shootTimer = ENEMY_SHOOT_INTERVAL + (G.rng ? G.rng() : Math.random()) * 0.4;
     const def = WEAPON_DEFS.pistol;
-    const spread = ((G.rng ? G.rng() : Math.random()) - 0.5) * 0.16;
+    const spread = ((G.rng ? G.rng() : Math.random()) - 0.5) * 0.48;
     const a = Math.atan2(p.y - e.y, p.x - e.x) + spread;
     G.bullets.push({
       x: e.x + Math.cos(a) * 24, y: e.y + Math.sin(a) * 24,

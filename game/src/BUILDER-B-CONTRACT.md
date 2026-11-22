@@ -56,10 +56,28 @@ No module reads another builder's internals beyond the fields listed here.
   `updateMissions`, `updateAutopilot` (before dialog branch),
   `updateGarage`, `updateRadio`.
 - Render: `drawPolice`, `drawHelicopter`, `drawCombat`,
-  `drawWeaponCrates` (from render.js), `drawHud` (hud.js draws all HUD).
+  `drawWeaponCrates` (from render.js), `drawHud` (hud.js draws all HUD;
+  render.js calls it as `drawHud(ctx, G)` — width/height come from
+  `ctx.canvas`).
 - Input keys: `1/2/3` select weapon, `Q` cycle weapon, `R` cycle radio,
   `E` interact / accept dialog / enter-exit car / open garage in zone.
   `Esc` closes garage menu first, then pauses.
+
+## KNOWN WIRING GAP — main.js garage pause deadlock (found batch 3, for Builder C)
+
+`openGarage` sets `G.paused = true`, and main.js's frame loop runs
+`stepGame` ONLY when `!G.paused` — so while the garage menu is open,
+`updateAutopilot` AND `updateGarage` never run, and the frame loop's
+own Esc handler explicitly skips when the garage is open
+(`pausePressed && !garageOpen`). Net: once the menu opens, the ONLY way
+to close it is clicking the DOM Close button; keyboard Esc is dead and
+the autopilot cannot act. The autopilot works around it by opening +
+buying + closing inside one `updateAutopilot` call (see autopilot.js),
+so m11 still completes — but a HUMAN player who opens the menu with E
+cannot close it with Esc. Builder C / main.js fix: run
+`updateGarage` (at least its Esc-close branch) and the autopilot before
+the paused early-exit, or handle Esc-close of the garage menu in the
+frame loop itself when `garageOpen`.
 
 ## Exported interfaces per module (function names C needs)
 
@@ -112,7 +130,39 @@ No module reads another builder's internals beyond the fields listed here.
   (setHeat inside accept/setup, never before). m12 death/caught
   restarts from stage 0 = stage (a). `G.onMissionComplete(def)` is
   called on completion (autosave hook for save.js).
-- autopilot.js — `createAutopilotState`, `updateAutopilot`,
-  `autopilotDriveTo`, `autopilotChase`, `findRouteGrid`.
+  NOTE (22 Nov, batch 3): the arc table is NO LONGER defined here —
+  it is imported from config.js (`MISSION_ARC as CONFIG_MISSION_ARC`)
+  and merged with a small local overlay that adds only the dialogue
+  hooks, type labels and shootout details (enemies / crates). config.js
+  is the single source of truth for order, rewards and time limits.
+- autopilot.js — `createAutopilotState`, `ensureAutopilotState`,
+  `enableAutopilot`, `disableAutopilot`, `updateAutopilot`,
+  `autopilotDriveTo`, `autopilotChase`, `findRouteGrid`,
+  `autopilotAcceptDialog` (the accept action: pulses E for one frame
+  into G.autoInput; main.js swaps G.input to G.autoInput after
+  updateAutopilot runs, so the dialog branch sees it), plus the
+  `AUTOPILOT_*` constants (chase cruise 520, walk recompute 120,
+  burst interval 0.45s, ammo pickup at <=6, car-switch thresholds
+  350/430 and ranges 200/320). The autopilot writes ONLY to
+  G.autoInput (keys rebuilt fresh every frame, edges live one frame),
+  drives cars DIRECTLY via vehicles.js `routeCarTo` / `driveRoute` /
+  `driveCarToward` and sets `G.autopilotDrove = true` on those frames.
+  GARAGE (m11): open + buy + close happen inside ONE updateAutopilot
+  call via `openGarage` / `buyUpgrade(cheapestAvailableUpgrade)` /
+  `closeGarage` — see the deadlock note below. If the menu is somehow
+  left open, updateAutopilot buys (m11 stage 0) and closes it on the
+  next call as a safety net. SHOOTOUT: on foot and >450 from the
+  arena, the autopilot DRIVES there first (finds a car via
+  autopilotDriveTo) — walking the whole way meets the advancing
+  enemies mid-city and burns all ammo at moving targets (live m10
+  probe 22 Nov: on-foot spawn start, ammo 0, 1 kill in 300s; fixed →
+  arena clear in 24s, SMG crate, mission complete). Health/ammo
+  pickups and weapon crates are sought when near the arena OR within
+  300 of Rook (dead-enemy drops count).
 - hud.js — `drawHud`, `drawMinimap`, `drawWantedStars`,
-  `drawObjectiveBanner`.
+  `drawObjectiveBanner`, `drawHealthBar`, plus the `HUD_*` size
+  constants (stars 40px, banner 28px bold, minimap 180px, health
+  18px). Radio station name comes from radio.js `currentStationName`
+  — the same source as the #radio-station DOM badge — so canvas and
+  badge can never disagree; the equalizer animates from
+  `G.radio.eqLevel` + `G.time.t`.
